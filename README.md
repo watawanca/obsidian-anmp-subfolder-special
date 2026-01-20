@@ -53,7 +53,7 @@ For comprehensive configuration examples, including tag-based, title-based, and 
 
 ### Manual Installation
 
-1. Download `main.js`, `manifest.json`, `styles.css` from the [latest Release](https://github.com/devkade/obsidian-auto-note-mover/releases).
+1. Download `main.js`, `manifest.json`, `styles.css` from the [latest Release](https://github.com/devkade/obsidian-auto-note-mover-plus/releases).
 
 2. Copy files to your vault's plugin folder:
 
