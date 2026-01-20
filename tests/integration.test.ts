@@ -3,12 +3,8 @@ import type { TFile, CachedMetadata } from 'obsidian';
 import { isRuleMatched } from '../utils/ruleMatching';
 import { processFolderPath } from '../utils/pathProcessing';
 
-/**
- * Minimal type definitions for integration testing
- * Avoids importing from settings.ts to prevent module resolution issues in vitest
- */
 type MatchMode = 'ALL' | 'ANY';
-type ConditionType = 'tag' | 'title' | 'property' | 'date';
+type ConditionType = 'tag' | 'title' | 'property' | 'date' | 'folder';
 type DateSource = 'frontmatter' | 'metadata';
 type MetadataField = 'ctime' | 'mtime';
 
@@ -17,14 +13,13 @@ interface RuleCondition {
 	value: string;
 	dateSource?: DateSource;
 	metadataField?: MetadataField;
+	includeSubfolders?: boolean;
 }
 
 interface FolderTagRule {
 	folder: string;
 	match: MatchMode;
 	conditions: RuleCondition[];
-	sourceFolders?: string[];
-	sourceIncludeSubfolders?: boolean;
 }
 
 interface ExcludedFolder {
@@ -43,53 +38,36 @@ interface AutoNoteMoverSettings {
 	duplicate_file_action?: 'skip' | 'merge';
 }
 
-/**
- * Default settings for testing
- */
 const DEFAULT_SETTINGS: AutoNoteMoverSettings = {
 	trigger_auto_manual: 'Automatic',
 	trigger_on_file_creation: false,
 	use_regex_to_check_for_tags: false,
 	statusBar_trigger_indicator: true,
-	folder_tag_pattern: [{ folder: '', match: 'ALL', conditions: [], sourceFolders: [], sourceIncludeSubfolders: false }],
+	folder_tag_pattern: [{ folder: '', match: 'ALL', conditions: [] }],
 	use_regex_to_check_for_excluded_folder: false,
 	excluded_folder: [{ folder: '' }],
 	hide_notifications: false,
 	duplicate_file_action: 'skip',
 };
 
-/**
- * Test helpers that mirror logic from main.ts for integration testing
- */
 function normalizePath(path: string): string {
 	return path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '');
 }
 
-function isFileInSourceFolders(
+function evaluateFolderCondition(
 	fileParentPath: string,
-	sourceFolders: string[] | undefined,
-	includeSubfolders: boolean | undefined
+	condition: RuleCondition
 ): boolean {
-	if (!sourceFolders || sourceFolders.length === 0) {
-		return true;
+	if (condition.type !== 'folder') return false;
+	const folderPath = (condition.value || '').trim();
+	if (!folderPath) return false;
+
+	const normalizedSource = normalizePath(folderPath);
+
+	if (condition.includeSubfolders) {
+		return fileParentPath === normalizedSource || fileParentPath.startsWith(normalizedSource + '/');
 	}
-
-	for (const sourceFolder of sourceFolders) {
-		if (!sourceFolder) continue;
-		const normalizedSource = normalizePath(sourceFolder);
-
-		if (includeSubfolders) {
-			if (fileParentPath === normalizedSource || fileParentPath.startsWith(normalizedSource + '/')) {
-				return true;
-			}
-		} else {
-			if (fileParentPath === normalizedSource) {
-				return true;
-			}
-		}
-	}
-
-	return false;
+	return fileParentPath === normalizedSource;
 }
 
 function canUseMergeAction(triggerMode: string, noteComposerEnabled: boolean): boolean {
@@ -107,7 +85,10 @@ const mockFile = {
 		ctime: new Date('2025-01-15').getTime(),
 		mtime: new Date('2025-01-15').getTime(),
 	},
-} as TFile;
+	parent: {
+		path: '/inbox',
+	},
+} as unknown as TFile;
 
 const fileCache = {
 	frontmatter: {
@@ -144,7 +125,7 @@ describe('Integration tests', () => {
 				trigger_on_file_creation: false,
 				use_regex_to_check_for_tags: false,
 				statusBar_trigger_indicator: true,
-				folder_tag_pattern: [{ folder: '', match: 'ALL', conditions: [], sourceFolders: [], sourceIncludeSubfolders: false }],
+				folder_tag_pattern: [{ folder: '', match: 'ALL', conditions: [] }],
 				use_regex_to_check_for_excluded_folder: false,
 				excluded_folder: [{ folder: '' }],
 			};
@@ -160,7 +141,7 @@ describe('Integration tests', () => {
 			expect(migratedSettings.folder_tag_pattern).toHaveLength(1);
 		});
 
-		it('should save and load settings with all new fields', () => {
+		it('should save and load settings with folder conditions', () => {
 			const fullSettings: AutoNoteMoverSettings = {
 				trigger_auto_manual: 'Manual',
 				trigger_on_file_creation: true,
@@ -170,9 +151,11 @@ describe('Integration tests', () => {
 					{
 						folder: 'Projects/$1',
 						match: 'ALL',
-						conditions: [{ type: 'tag', value: '#project-(\\w+)' }],
-						sourceFolders: ['/inbox', '/drafts'],
-						sourceIncludeSubfolders: true,
+						conditions: [
+							{ type: 'folder', value: '/inbox', includeSubfolders: false },
+							{ type: 'folder', value: '/drafts', includeSubfolders: true },
+							{ type: 'tag', value: '#project-(\\w+)' },
+						],
 					},
 				],
 				use_regex_to_check_for_excluded_folder: true,
@@ -188,55 +171,81 @@ describe('Integration tests', () => {
 			expect(loaded.trigger_on_file_creation).toBe(true);
 			expect(loaded.hide_notifications).toBe(true);
 			expect(loaded.duplicate_file_action).toBe('merge');
-			expect(loaded.folder_tag_pattern[0].sourceFolders).toEqual(['/inbox', '/drafts']);
-			expect(loaded.folder_tag_pattern[0].sourceIncludeSubfolders).toBe(true);
+			expect(loaded.folder_tag_pattern[0].conditions).toHaveLength(3);
+			expect(loaded.folder_tag_pattern[0].conditions[0].type).toBe('folder');
+			expect(loaded.folder_tag_pattern[0].conditions[0].includeSubfolders).toBe(false);
+			expect(loaded.folder_tag_pattern[0].conditions[1].includeSubfolders).toBe(true);
 		});
 	});
 
 	describe('Feature interaction', () => {
-		it('should apply sourceFolders restriction before rule matching', () => {
+		it('should apply folder condition with tag condition (match ALL)', () => {
 			const rule: FolderTagRule = {
 				folder: 'Projects',
 				match: 'ALL',
-				conditions: [{ type: 'tag', value: '#project' }],
-				sourceFolders: ['/work'],
-				sourceIncludeSubfolders: true,
+				conditions: [
+					{ type: 'folder', value: '/inbox', includeSubfolders: false },
+					{ type: 'tag', value: '#project' },
+				],
 			};
 
-			const fileParentPath = '/work/note';
-			const isInSourceFolders = isFileInSourceFolders(
-				fileParentPath,
-				rule.sourceFolders,
-				rule.sourceIncludeSubfolders
-			);
-
-			expect(isInSourceFolders).toBe(true);
+			const fileInInbox = {
+				...mockFile,
+				parent: { path: '/inbox' },
+			} as unknown as TFile;
 
 			const matchResult = isRuleMatched(rule, makeContext({
 				tags: ['#project'],
 				useRegexForTags: true,
+				file: fileInInbox,
 			}));
 
 			expect(matchResult.matched).toBe(true);
 		});
 
-		it('should apply sourceFolders restriction - file outside source', () => {
+		it('should reject when folder condition not met (match ALL)', () => {
 			const rule: FolderTagRule = {
 				folder: 'Projects',
 				match: 'ALL',
-				conditions: [{ type: 'tag', value: '#project' }],
-				sourceFolders: ['/work'],
-				sourceIncludeSubfolders: true,
+				conditions: [
+					{ type: 'folder', value: '/inbox', includeSubfolders: false },
+					{ type: 'tag', value: '#project' },
+				],
 			};
 
-			const fileParentPath = '/personal/note';
-			const isInSourceFolders = isFileInSourceFolders(
-				fileParentPath,
-				rule.sourceFolders,
-				rule.sourceIncludeSubfolders
-			);
+			const fileInOther = {
+				...mockFile,
+				parent: { path: '/other' },
+			} as unknown as TFile;
 
-			expect(isInSourceFolders).toBe(false);
+			const matchResult = isRuleMatched(rule, makeContext({
+				tags: ['#project'],
+				useRegexForTags: true,
+				file: fileInOther,
+			}));
+
+			expect(matchResult.matched).toBe(false);
+		});
+
+		it('should apply folder condition with includeSubfolders', () => {
+			const rule: FolderTagRule = {
+				folder: 'Archive',
+				match: 'ALL',
+				conditions: [
+					{ type: 'folder', value: '/inbox', includeSubfolders: true },
+				],
+			};
+
+			const fileInSubfolder = {
+				...mockFile,
+				parent: { path: '/inbox/subfolder' },
+			} as unknown as TFile;
+
+			const matchResult = isRuleMatched(rule, makeContext({
+				file: fileInSubfolder,
+			}));
+
+			expect(matchResult.matched).toBe(true);
 		});
 
 		it('should handle capture groups with date tokens together', () => {
@@ -327,17 +336,41 @@ describe('Integration tests', () => {
 	});
 
 	describe('Edge cases', () => {
-		it('should handle empty sourceFolders array', () => {
+		it('should handle rule with folder condition as only condition', () => {
 			const rule: FolderTagRule = {
 				folder: 'Destination',
 				match: 'ALL',
-				conditions: [{ type: 'tag', value: '#test' }],
-				sourceFolders: [],
-				sourceIncludeSubfolders: false,
+				conditions: [
+					{ type: 'folder', value: '/inbox', includeSubfolders: false },
+				],
 			};
 
-			const result = isFileInSourceFolders('/any/path', rule.sourceFolders, rule.sourceIncludeSubfolders);
-			expect(result).toBe(true);
+			const fileInInbox = {
+				...mockFile,
+				parent: { path: '/inbox' },
+			} as unknown as TFile;
+
+			const result = isRuleMatched(rule, makeContext({ file: fileInInbox }));
+			expect(result.matched).toBe(true);
+		});
+
+		it('should handle multiple folder conditions with ANY match', () => {
+			const rule: FolderTagRule = {
+				folder: 'Archive',
+				match: 'ANY',
+				conditions: [
+					{ type: 'folder', value: '/inbox', includeSubfolders: false },
+					{ type: 'folder', value: '/drafts', includeSubfolders: false },
+				],
+			};
+
+			const fileInDrafts = {
+				...mockFile,
+				parent: { path: '/drafts' },
+			} as unknown as TFile;
+
+			const result = isRuleMatched(rule, makeContext({ file: fileInDrafts }));
+			expect(result.matched).toBe(true);
 		});
 
 		it('should handle undefined capture groups gracefully', () => {
@@ -391,20 +424,15 @@ describe('Integration tests', () => {
 			expect(settings.duplicate_file_action).toBe('skip');
 		});
 
-		it('should handle rule with no conditions but has sourceFolders', () => {
+		it('should handle rule with no conditions', () => {
 			const rule: FolderTagRule = {
 				folder: 'Archive',
 				match: 'ALL',
 				conditions: [],
-				sourceFolders: ['/inbox'],
-				sourceIncludeSubfolders: false,
 			};
 
-			const isInSource = isFileInSourceFolders('/inbox', rule.sourceFolders, rule.sourceIncludeSubfolders);
-			expect(isInSource).toBe(true);
-
-			const notInSource = isFileInSourceFolders('/other', rule.sourceFolders, rule.sourceIncludeSubfolders);
-			expect(notInSource).toBe(false);
+			const result = isRuleMatched(rule, makeContext());
+			expect(result.matched).toBe(false);
 		});
 
 		it('should handle nested capture groups with multiple rules', () => {
@@ -441,6 +469,26 @@ describe('Integration tests', () => {
 
 			const processed2 = processFolderPath(rule2.folder, fileCache, mockFile, rule2, result2.captureGroups);
 			expect(processed2).toBe('Personal/journal');
+		});
+
+		it('should handle folder condition with empty value', () => {
+			const cond: RuleCondition = { type: 'folder', value: '', includeSubfolders: false };
+			const result = evaluateFolderCondition('/inbox', cond);
+			expect(result).toBe(false);
+		});
+
+		it('should handle folder condition matching exact path', () => {
+			const cond: RuleCondition = { type: 'folder', value: '/inbox', includeSubfolders: false };
+			expect(evaluateFolderCondition('/inbox', cond)).toBe(true);
+			expect(evaluateFolderCondition('/inbox/sub', cond)).toBe(false);
+		});
+
+		it('should handle folder condition with subfolders', () => {
+			const cond: RuleCondition = { type: 'folder', value: '/inbox', includeSubfolders: true };
+			expect(evaluateFolderCondition('/inbox', cond)).toBe(true);
+			expect(evaluateFolderCondition('/inbox/sub', cond)).toBe(true);
+			expect(evaluateFolderCondition('/inbox/sub/nested', cond)).toBe(true);
+			expect(evaluateFolderCondition('/other', cond)).toBe(false);
 		});
 	});
 });

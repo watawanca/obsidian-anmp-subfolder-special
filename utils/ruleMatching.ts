@@ -162,6 +162,16 @@ const evaluateCondition = (cond: RuleCondition, ctx: RuleContext): MatchResult =
 			const m = coerceToMoment(val);
 			return { matched: !!m && m.isValid() };
 		}
+		case 'folder': {
+			const folderPath = (cond.value || '').trim();
+			if (!folderPath) return { matched: false };
+			const parentPath = file?.parent?.path || '';
+			if (cond.includeSubfolders) {
+				const matched = parentPath === folderPath || parentPath.startsWith(folderPath + '/');
+				return { matched };
+			}
+			return { matched: parentPath === folderPath };
+		}
 		default:
 			return { matched: false };
 	}
@@ -174,6 +184,9 @@ const activeConditions = (conditions: RuleCondition[] = []): RuleCondition[] => 
 		if (cond.type === 'date') {
 			const source = cond.dateSource || 'frontmatter';
 			if (source === 'metadata') return !!cond.metadataField;
+			return value !== '';
+		}
+		if (cond.type === 'folder') {
 			return value !== '';
 		}
 		if (value === '') return false;

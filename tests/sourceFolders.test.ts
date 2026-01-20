@@ -1,145 +1,127 @@
 import { describe, it, expect } from 'vitest';
-import type { FolderTagRule } from '../settings/settings';
+import type { FolderTagRule, RuleCondition } from '../settings/settings';
 
-/**
- * Simple normalizePath implementation for testing
- * This mirrors the logic in obsidian's normalizePath
- */
 function normalizePath(path: string): string {
 	return path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '');
 }
 
-/**
- * Test helper to check if a file path is in the source folders
- * This mirrors the logic in main.ts fileCheck function
- */
-function isFileInSourceFolders(
+function evaluateFolderCondition(
 	fileParentPath: string,
-	sourceFolders: string[] | undefined,
-	includeSubfolders: boolean | undefined
+	condition: RuleCondition
 ): boolean {
-	if (!sourceFolders || sourceFolders.length === 0) {
-		return true; // No source folders restriction
+	if (condition.type !== 'folder') return false;
+	const folderPath = (condition.value || '').trim();
+	if (!folderPath) return false;
+
+	const normalizedSource = normalizePath(folderPath);
+
+	if (condition.includeSubfolders) {
+		return fileParentPath === normalizedSource || fileParentPath.startsWith(normalizedSource + '/');
 	}
-
-	for (const sourceFolder of sourceFolders) {
-		if (!sourceFolder) continue;
-		const normalizedSource = normalizePath(sourceFolder);
-
-		if (includeSubfolders) {
-			if (fileParentPath === normalizedSource || fileParentPath.startsWith(normalizedSource + '/')) {
-				return true;
-			}
-		} else {
-			if (fileParentPath === normalizedSource) {
-				return true;
-			}
-		}
-	}
-
-	return false;
+	return fileParentPath === normalizedSource;
 }
 
-describe('sourceFolders feature', () => {
-	describe('isFileInSourceFolders', () => {
-		it('returns true when sourceFolders is undefined', () => {
-			expect(isFileInSourceFolders('/notes', undefined, false)).toBe(true);
+describe('folder condition type', () => {
+	describe('evaluateFolderCondition', () => {
+		it('returns false when value is empty', () => {
+			const cond: RuleCondition = { type: 'folder', value: '' };
+			expect(evaluateFolderCondition('/notes', cond)).toBe(false);
 		});
 
-		it('returns true when sourceFolders is empty array', () => {
-			expect(isFileInSourceFolders('/notes', [], false)).toBe(true);
+		it('returns true when file is in exact folder (no subfolders)', () => {
+			const cond: RuleCondition = { type: 'folder', value: '/notes', includeSubfolders: false };
+			expect(evaluateFolderCondition('/notes', cond)).toBe(true);
 		});
 
-		it('returns true when file is in exact source folder (no subfolders)', () => {
-			expect(isFileInSourceFolders('/notes', ['/notes'], false)).toBe(true);
-		});
-
-		it('returns true when file is in exact source folder (with subfolders)', () => {
-			expect(isFileInSourceFolders('/notes', ['/notes'], true)).toBe(true);
+		it('returns true when file is in exact folder (with subfolders)', () => {
+			const cond: RuleCondition = { type: 'folder', value: '/notes', includeSubfolders: true };
+			expect(evaluateFolderCondition('/notes', cond)).toBe(true);
 		});
 
 		it('returns true when file is in subfolder (with subfolders enabled)', () => {
-			expect(isFileInSourceFolders('/notes/subfolder', ['/notes'], true)).toBe(true);
+			const cond: RuleCondition = { type: 'folder', value: '/notes', includeSubfolders: true };
+			expect(evaluateFolderCondition('/notes/subfolder', cond)).toBe(true);
 		});
 
 		it('returns true when file is in nested subfolder (with subfolders enabled)', () => {
-			expect(isFileInSourceFolders('/notes/subfolder/nested', ['/notes'], true)).toBe(true);
+			const cond: RuleCondition = { type: 'folder', value: '/notes', includeSubfolders: true };
+			expect(evaluateFolderCondition('/notes/subfolder/nested', cond)).toBe(true);
 		});
 
 		it('returns false when file is in subfolder (with subfolders disabled)', () => {
-			expect(isFileInSourceFolders('/notes/subfolder', ['/notes'], false)).toBe(false);
+			const cond: RuleCondition = { type: 'folder', value: '/notes', includeSubfolders: false };
+			expect(evaluateFolderCondition('/notes/subfolder', cond)).toBe(false);
 		});
 
-		it('returns false when file is not in any source folder', () => {
-			expect(isFileInSourceFolders('/other', ['/notes'], false)).toBe(false);
+		it('returns false when file is not in folder', () => {
+			const cond: RuleCondition = { type: 'folder', value: '/notes', includeSubfolders: false };
+			expect(evaluateFolderCondition('/other', cond)).toBe(false);
 		});
 
 		it('returns false when file is in different root folder', () => {
-			expect(isFileInSourceFolders('/work/project', ['/personal'], true)).toBe(false);
-		});
-
-		it('matches multiple source folders (first match)', () => {
-			expect(isFileInSourceFolders('/work', ['/personal', '/work'], false)).toBe(true);
-		});
-
-		it('matches multiple source folders (second match)', () => {
-			expect(isFileInSourceFolders('/personal/diary', ['/work', '/personal'], true)).toBe(true);
-		});
-
-		it('returns false when file matches none of multiple source folders', () => {
-			expect(isFileInSourceFolders('/archive', ['/work', '/personal'], false)).toBe(false);
-		});
-
-		it('ignores empty strings in sourceFolders array', () => {
-			expect(isFileInSourceFolders('/notes', ['', '/notes'], false)).toBe(true);
+			const cond: RuleCondition = { type: 'folder', value: '/personal', includeSubfolders: true };
+			expect(evaluateFolderCondition('/work/project', cond)).toBe(false);
 		});
 
 		it('handles folder paths without leading slash', () => {
-			expect(isFileInSourceFolders('notes', ['notes'], false)).toBe(true);
+			const cond: RuleCondition = { type: 'folder', value: 'notes', includeSubfolders: false };
+			expect(evaluateFolderCondition('notes', cond)).toBe(true);
 		});
 
 		it('handles folder paths with various formats', () => {
-			expect(isFileInSourceFolders('/Users/notes', ['/Users/notes'], false)).toBe(true);
+			const cond: RuleCondition = { type: 'folder', value: '/Users/notes', includeSubfolders: false };
+			expect(evaluateFolderCondition('/Users/notes', cond)).toBe(true);
 		});
 
-		it('returns true when source folder is root', () => {
-			expect(isFileInSourceFolders('/notes', ['/'], true)).toBe(true);
+		it('returns true when source folder is root (with subfolders)', () => {
+			const cond: RuleCondition = { type: 'folder', value: '/', includeSubfolders: true };
+			expect(evaluateFolderCondition('/notes', cond)).toBe(true);
+		});
+
+		it('includeSubfolders defaults to false when undefined', () => {
+			const cond: RuleCondition = { type: 'folder', value: '/notes' };
+			expect(evaluateFolderCondition('/notes/subfolder', cond)).toBe(false);
+			expect(evaluateFolderCondition('/notes', cond)).toBe(true);
 		});
 	});
 
-	describe('FolderTagRule interface', () => {
-		it('allows sourceFolders as optional array', () => {
+	describe('FolderTagRule with folder condition', () => {
+		it('allows folder condition in conditions array', () => {
 			const rule: FolderTagRule = {
 				folder: '/destination',
 				match: 'ALL',
-				conditions: [{ type: 'tag', value: '#test' }],
-				sourceFolders: ['/source'],
-				sourceIncludeSubfolders: true,
+				conditions: [
+					{ type: 'folder', value: '/source', includeSubfolders: true },
+					{ type: 'tag', value: '#test' },
+				],
 			};
 
-			expect(rule.sourceFolders).toEqual(['/source']);
-			expect(rule.sourceIncludeSubfolders).toBe(true);
+			expect(rule.conditions).toHaveLength(2);
+			expect(rule.conditions[0].type).toBe('folder');
+			expect(rule.conditions[0].includeSubfolders).toBe(true);
 		});
 
-		it('allows sourceFolders to be undefined', () => {
+		it('allows multiple folder conditions', () => {
 			const rule: FolderTagRule = {
 				folder: '/destination',
-				match: 'ALL',
-				conditions: [{ type: 'tag', value: '#test' }],
+				match: 'ANY',
+				conditions: [
+					{ type: 'folder', value: '/inbox', includeSubfolders: false },
+					{ type: 'folder', value: '/drafts', includeSubfolders: true },
+				],
 			};
 
-			expect(rule.sourceFolders).toBeUndefined();
+			expect(rule.conditions.every((c) => c.type === 'folder')).toBe(true);
 		});
 
-		it('allows empty sourceFolders array', () => {
+		it('works without folder conditions', () => {
 			const rule: FolderTagRule = {
 				folder: '/destination',
 				match: 'ALL',
 				conditions: [{ type: 'tag', value: '#test' }],
-				sourceFolders: [],
 			};
 
-			expect(rule.sourceFolders).toEqual([]);
+			expect(rule.conditions.every((c) => c.type !== 'folder')).toBe(true);
 		});
 	});
 });

@@ -67,35 +67,6 @@ export default class AutoNoteMover extends Plugin {
 			for (let i = 0; i < settingsLength; i++) {
 				const rule = folderTagPattern[i];
 
-				// Source Folders check (rule-level restriction)
-				const sourceFolders = rule.sourceFolders;
-				if (sourceFolders && sourceFolders.length > 0) {
-					const fileParentPath = file.parent.path;
-					const includeSubfolders = rule.sourceIncludeSubfolders;
-					let isInSourceFolder = false;
-
-					for (const sourceFolder of sourceFolders) {
-						if (!sourceFolder) continue;
-						const normalizedSource = normalizePath(sourceFolder);
-
-						if (includeSubfolders) {
-							if (fileParentPath === normalizedSource || fileParentPath.startsWith(normalizedSource + '/')) {
-								isInSourceFolder = true;
-								break;
-							}
-						} else {
-							if (fileParentPath === normalizedSource) {
-								isInSourceFolder = true;
-								break;
-							}
-						}
-					}
-
-					if (!isInSourceFolder) {
-						continue;
-					}
-				}
-
 				const result = isRuleMatched(rule, {
 					fileCache,
 					fileName,
@@ -238,8 +209,6 @@ export default class AutoNoteMover extends Plugin {
 						match: rule.match === 'ANY' ? 'ANY' : 'ALL',
 						conditions: normalizedConds,
 						date_property: rule.date_property || '',
-						sourceFolders: rule.sourceFolders || [],
-						sourceIncludeSubfolders: rule.sourceIncludeSubfolders || false,
 					};
 				}
 

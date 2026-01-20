@@ -35,6 +35,21 @@ Each rule consists of:
 | **Title**    | Matches the note title using Regex.                | `^Daily Note`, `Meeting$`           |
 | **Property** | Matches a frontmatter property (key or key=value). | `status: active`, `published: true` |
 | **Date**     | Matches date criteria (see below).                 | Created Time, Modified Time         |
+| **Folder**   | Restricts rule to notes in specific source folders. | `/inbox`, `/drafts`                |
+
+#### Folder Condition Details
+
+Restrict a rule to only apply to notes in specific source folders.
+
+-   **Folder Path**: Specify the source folder path (e.g., `/inbox`).
+-   **Include Subfolders**: When enabled, the rule also matches notes in all subfolders.
+    -   Example: Folder `/notes` with "Include subfolders" ON matches:
+        -   `/notes/file.md` ✓
+        -   `/notes/subfolder/file.md` ✓
+        -   `/notes/deep/nested/file.md` ✓
+    -   With "Include subfolders" OFF, only exact folder match:
+        -   `/notes/file.md` ✓
+        -   `/notes/subfolder/file.md` ✗
 
 #### Date Condition Details
 
