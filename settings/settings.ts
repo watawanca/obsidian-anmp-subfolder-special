@@ -26,7 +26,7 @@ class ExcludedFoldersModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
 
-    contentEl.createEl("h2", { text: "Manage Excluded Folders" });
+    contentEl.createEl("h2", { text: "Manage excluded folders" });
 
     const desc = contentEl.createEl("p", {
       cls: "setting-item-description",
@@ -86,7 +86,7 @@ class ExcludedFoldersModal extends Modal {
       });
 
     new ButtonComponent(buttonContainer)
-      .setButtonText("Save & Close")
+      .setButtonText("Save and close")
       .setCta()
       .onClick(async () => {
         await this.plugin.saveSettings();
@@ -633,7 +633,7 @@ export class AutoNoteMoverSettingTab extends PluginSettingTab {
 
       const addBtnContainer = body.createDiv({ cls: "anm-add-btn-container" });
       new ButtonComponent(addBtnContainer)
-        .setButtonText("+ add")
+        .setButtonText("Add condition")
         .onClick(async () => {
           rule.conditions.push({ type: "tag", value: "" });
           await this.plugin.saveSettings();
