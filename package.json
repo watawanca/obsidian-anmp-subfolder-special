@@ -9,7 +9,9 @@
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"test": "vitest run",
-		"test:watch": "vitest"
+		"test:watch": "vitest",
+		"version": "node scripts/update-manifest-version.mjs && git add manifest.json",
+		"release": "npm version patch && git push && git push --tags"
 	},
 	"keywords": [],
 	"author": "",
