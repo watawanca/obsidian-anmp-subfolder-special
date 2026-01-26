@@ -5,7 +5,7 @@ export default defineConfig({
 		include: ['tests/**/*.test.ts'],
 		globals: true,
 		alias: {
-			obsidian: '/Users/kade/opensource/obsidian-auto-note-mover/__mocks__/obsidian.ts',
+			obsidian: './__mocks__/obsidian.ts',
 		},
 	},
 });
