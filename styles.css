@@ -1,0 +1,206 @@
+/* Card Layout Styles */
+.anm-rule-card {
+    background-color: var(--background-primary-alt);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 0; /* Gap handled by padding/margins internally now */
+}
+
+.anm-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.anm-card-header-main {
+    flex-grow: 1;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.anm-collapse-btn .clickable-icon {
+    padding: 6px;
+}
+
+.anm-card-header-main .setting-item {
+    border: none;
+    padding: 0;
+}
+
+.anm-card-header-main .setting-item-control {
+    padding: 0;
+}
+
+.anm-card-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.anm-card-body.anm-collapsed {
+    display: none;
+}
+
+/* Divider */
+.anm-card-divider {
+    height: 1px;
+    background-color: var(--background-modifier-border);
+    margin: 0 -16px 12px -16px; /* Negative margin to span full width */
+    width: calc(100% + 32px);
+}
+
+/* Conditions List */
+.anm-card-conditions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.anm-condition-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+}
+
+.anm-condition-row select {
+    width: 120px;
+}
+
+.anm-condition-row input {
+    flex-grow: 1;
+}
+
+.anm-folder-setting .setting-item-control {
+    width: 100%;
+}
+
+.anm-folder-setting .search-input-container,
+.anm-folder-setting input {
+    width: 100%;
+}
+
+.anm-date-source-wrap {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.anm-folder-options-wrap {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.anm-folder-options-wrap select {
+    min-width: 160px;
+}
+
+.anm-condition-row select:nth-child(1) {
+    min-width: 120px;
+}
+
+.anm-date-source-wrap select {
+    min-width: 140px;
+}
+
+.anm-metadata-select {
+    flex: 1 1 auto;
+    width: 100%;
+}
+
+/* Add Button Container */
+.anm-add-btn-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+
+/* Utility */
+.anm-flex-grow {
+    flex-grow: 1;
+}
+
+.anm-w-full {
+    width: 100%;
+}
+
+.anm-hidden {
+    display: none;
+}
+
+.anm-visible {
+    display: flex;
+}
+
+/* Modal Styles */
+.anm-modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.anm-excluded-folders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.anm-excluded-folder-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.anm-excluded-folder-row .setting-item {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.anm-excluded-folder-row .setting-item-control {
+    padding: 0;
+}
+
+/* Excluded Folders Inline List */
+.anm-excluded-folders-inline {
+    margin-top: 8px;
+}
+
+.anm-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.anm-folder-tag {
+    background-color: var(--background-modifier-border);
+    color: var(--text-normal);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.anm-excluded-count {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.anm-empty-message {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-style: italic;
+}
